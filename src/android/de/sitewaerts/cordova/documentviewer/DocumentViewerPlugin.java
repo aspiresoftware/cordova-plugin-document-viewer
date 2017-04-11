@@ -21,7 +21,7 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-package de.sitewaerts.cordova.documentviewer;
+package be.sitewaerts.cordova.documentviewer;
 
 import android.content.ComponentName;
 import android.content.Intent;
@@ -33,10 +33,14 @@ import org.apache.cordova.*;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-
+import android.content.pm.ResolveInfo;
+import java.util.List;
+import android.content.Context;
+import android.os.Build;
+import java.io.File;
 import java.io.*;
 
-//import android.support.v4.content.FileProvider;
+import android.support.v4.content.FileProvider;
 
 public final class DocumentViewerPlugin
         extends CordovaPlugin
@@ -249,8 +253,8 @@ public final class DocumentViewerPlugin
             );
 
             JSONObject successObj = null;
-            if (PDF.equals(contentType))
-            {
+            // if (PDF.equals(contentType))
+            // {
                 if (canGetFile(url))
                 {
                     if (!this._appIsInstalled(packageId))
@@ -273,7 +277,7 @@ public final class DocumentViewerPlugin
                 {
                     Log.d(TAG, "File " + url + " not available");
                 }
-            }
+            // }
 
             if (successObj == null)
             {
@@ -365,15 +369,29 @@ public final class DocumentViewerPlugin
             {
                 Intent intent = new Intent(Intent.ACTION_VIEW);
                 Uri path = Uri.fromFile(file);
-
+                if(Build.VERSION.SDK_INT > 23){
+					Context context = cordova.getActivity().getApplicationContext();
+					path = FileProvider.getUriForFile(context, cordova.getActivity().getPackageName() + ".provider", file);
+					intent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+					intent.setFlags(Intent.FLAG_ACTIVITY_NO_HISTORY);
+					//intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+				 	List<ResolveInfo> infoList = context.getPackageManager().queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY);
+					for (ResolveInfo resolveInfo : infoList) {
+				    String packageName = resolveInfo.activityInfo.packageName;
+				    context.grantUriPermission(packageName, path, Intent.FLAG_GRANT_WRITE_URI_PERMISSION | Intent.FLAG_GRANT_READ_URI_PERMISSION);
+					}
+				}
+                else {
+                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                }
+                intent.setDataAndType(path, contentType);
                 // @see http://stackoverflow.com/questions/2780102/open-another-application-from-your-own-intent
                 intent.addCategory(Intent.CATEGORY_EMBED);
-                intent.setDataAndType(path, contentType);
-                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                
                 intent.putExtra(this.getClass().getName(), viewerOptions);
                 //activity needs fully qualified name here
                 intent.setComponent(
-                        new ComponentName(packageId, packageId + "." + activity)
+                        new ComponentName(packageId, activity)
                 );
 
                 this.callbackContext = callbackContext;
